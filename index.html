@@ -75,7 +75,7 @@
 
 <script>
 /* --- Cấu hình: dán URL Web App Google Script tại đây --- */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxF4evPvBJ_gtC5qtufqbvw0rG9gSJjW3UYZSAADJUoOBmKjAF_prCuYc89PZiNjcqM/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxp_0qC6j-XxvzFTWz2LI40yoIU8VuFpA2B49SDnVhXU0KJYME86RqiUrPZxrWXlgoP/exec";
 
 /* Đáp án đúng theo yêu cầu ảnh */
 const answers = {
@@ -92,8 +92,8 @@ const phoneMsg = document.getElementById('phoneMsg');
 document.getElementById('btnStart').addEventListener('click', async function(){
   phoneMsg.textContent = "";
   phone = phoneInput.value.trim();
-  if(!phone.match(/^[0-9]{7,12}$/)){
-    phoneMsg.textContent = "Vui lòng nhập số điện thoại hợp lệ (7-12 chữ số).";
+  if(!phone.match(/^[0-9]{10}$/)){
+    phoneMsg.textContent = "Vui lòng nhập số điện thoại hợp lệ (10 chữ số).";
     return;
   }
   // gọi API check
