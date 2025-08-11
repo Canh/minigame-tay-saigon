@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mini Game - Quỹ Tín Dụng Tây Sài Gòn</title>
+<style>
+  :root{--primary:#2e7d32;--accent:#ffb300;--card:#ffffffcc}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#e8f5e9,#fff);display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+  .wrap{width:100%;max-width:420px;background:var(--card);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.12);padding:18px;text-align:center}
+  h1{margin:6px 0;color:var(--primary);font-size:20px}
+  p.lead{font-size:14px;color:#333;margin:8px 0 14px}
+  input{width:100%;padding:12px;border-radius:10px;border:1px solid #ddd;font-size:16px;box-sizing:border-box;margin:8px 0}
+  button.primary{width:100%;padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:16px;cursor:pointer}
+  button.secondary{width:100%;padding:10px;border-radius:10px;border:1px solid #eee;background:#fff;margin-top:8px;cursor:pointer}
+  .question{margin-top:14px}
+  .opt{display:block;width:100%;padding:12px;border-radius:10px;border:none;margin:8px 0;font-size:16px;cursor:pointer}
+  .opt.correct{background:linear-gradient(90deg,#b9f6ca,#69f0ae);color:#004d00}
+  .opt.wrong{background:linear-gradient(90deg,#ffcdd2,#ff8a80);color:#5d0000}
+  .message{margin-top:12px;font-weight:bold}
+  #canvasConfetti{position:fixed;left:0;top:0;pointer-events:none;z-index:9999}
+  .musicControl{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px}
+  small.note{display:block;color:#555;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <h1>🎉 Mini Game - Quỹ Tín Dụng Tây Sài Gòn</h1>
+  <p class="lead">Chào mừng bạn tham gia mini game cùng với Quỹ Tín Dụng Tây Sài Gòn</p>
+
+  <div id="step-phone">
+    <input id="phone" type="tel" placeholder="Nhập số điện thoại (bắt buộc)" />
+    <button class="primary" id="btnStart">Bắt đầu</button>
+    <div style="height:8px"></div>
+    <div class="musicControl">
+      <button class="secondary" id="btnPlayMusic">▶ Bật nhạc</button>
+      <button class="secondary" id="btnStopMusic">⏸ Tắt nhạc</button>
+    </div>
+    <small class="note">Nhạc bật bằng tay để không bị chặn trên điện thoại.</small>
+    <p id="phoneMsg" style="color:#b00020;margin-top:8px"></p>
+  </div>
+
+  <div id="step-game" style="display:none">
+    <div id="welcomeText">
+      <p style="margin:6px 0">🪅 <b>Chào mừng bạn tham gia mini game cùng với Quỹ Tín Dụng Tây Sài Gòn</b></p>
+    </div>
+
+    <div id="q1" class="question">
+      <p><b>Câu 1:</b> Quỹ Tín Dụng Tây Sài Gòn đã hoạt động được bao nhiêu năm?</p>
+      <button class="opt" onclick="choose(1,'5 năm')">5 năm</button>
+      <button class="opt" onclick="choose(1,'10 năm')">10 năm</button>
+      <button class="opt" onclick="choose(1,'18 năm')">18 năm</button>
+    </div>
+
+    <div id="q2" class="question" style="display:none">
+      <p><b>Câu 2:</b> Lãi suất tiết kiệm kỳ hạn 13 tháng tại Quỹ Tây Sài Gòn là bao nhiêu?</p>
+      <button class="opt" onclick="choose(2,'5%')">5%</button>
+      <button class="opt" onclick="choose(2,'5.5%')">5.5%</button>
+      <button class="opt" onclick="choose(2,'6.2%')">6.2%</button>
+    </div>
+
+    <div id="resultBox" style="display:none">
+      <p id="resultMsg" class="message"></p>
+      <p style="font-size:14px;color:#333">Xin mời quý khách đến Quỹ TD Tây Sài Gòn tại <b>2276 Vĩnh Lộc</b> để nhận quà nhé.</p>
+      <button class="primary" onclick="restart()">Chơi lại</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="canvasConfetti"></canvas>
+<audio id="bgMusic" loop>
+  <!-- Nếu bạn có link mp3, thay vào src dưới đây -->
+  <source src="" type="audio/mpeg">
+</audio>
+
+<script>
+/* --- Cấu hình: dán URL Web App Google Script tại đây --- */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxF4evPvBJ_gtC5qtufqbvw0rG9gSJjW3UYZSAADJUoOBmKjAF_prCuYc89PZiNjcqM/exec";
+
+/* Đáp án đúng theo yêu cầu ảnh */
+const answers = {
+  1: "18 năm",
+  2: "6.2%"
+};
+
+let phone = "";
+let answersUser = {1: "", 2: ""};
+let currentQ = 1;
+const phoneInput = document.getElementById('phone');
+const phoneMsg = document.getElementById('phoneMsg');
+
+document.getElementById('btnStart').addEventListener('click', async function(){
+  phoneMsg.textContent = "";
+  phone = phoneInput.value.trim();
+  if(!phone.match(/^[0-9]{7,12}$/)){
+    phoneMsg.textContent = "Vui lòng nhập số điện thoại hợp lệ (7-12 chữ số).";
+    return;
+  }
+  // gọi API check
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "check", sdt: phone }),
+      headers: { "Content-Type": "application/json" }
+    });
+    const data = await res.json();
+    if (data.status === "exists") {
+      phoneMsg.textContent = "Số điện thoại này đã tham gia rồi. Cảm ơn bạn!";
+      return;
+    }
+    // nếu ok -> bắt đầu game
+    document.getElementById('step-phone').style.display = 'none';
+    document.getElementById('step-game').style.display = 'block';
+  } catch (err) {
+    phoneMsg.textContent = "Lỗi kết nối, vui lòng thử lại.";
+    console.error(err);
+  }
+});
+
+/* xử lý chọn đáp án */
+function choose(qnum, val){
+  // disable các nút của câu đó để tránh bấm thêm
+  const qEl = document.getElementById('q'+qnum);
+  Array.from(qEl.querySelectorAll('.opt')).forEach(btn => btn.disabled = true);
+
+  answersUser[qnum] = val;
+
+  // hiển thị đáp án đúng/ sai ngay lập tức và hiệu ứng
+  const correct = (val === answers[qnum]);
+  if (correct) {
+    // highlight nút được chọn
+    highlightButton(qEl, val, true);
+    showResultMessage(true, qnum);
+  } else {
+    highlightButton(qEl, val, false);
+    showResultMessage(false, qnum);
+  }
+
+  // nếu còn câu tiếp theo -> chuyển sang câu sau
+  if (qnum === 1) {
+    setTimeout(()=> {
+      document.getElementById('q1').style.display = 'none';
+      document.getElementById('q2').style.display = 'block';
+      currentQ = 2;
+    }, 900);
+  } else {
+    // câu cuối -> gửi kết quả lên server và hiển thị kết quả chung
+    setTimeout(()=> finishGame(), 900);
+  }
+}
+
+function highlightButton(qEl, val, isCorrect){
+  Array.from(qEl.querySelectorAll('.opt')).forEach(btn=>{
+    if (btn.textContent.trim() === val) {
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+    }
+  });
+}
+
+function showResultMessage(isCorrect, qnum){
+  // theo nội dung bạn muốn: nếu sai vẫn tung bông, nếu đúng tung nhiều hơn
+  // ở đây chúng ta chỉ hiển thị message cuối cùng, còn confetti sẽ chạy ở cuối
+  const msg = isCorrect
+    ? `🎉 Tung bông hoa nhiều hơn, Wow, bạn giỏi quá! (Câu ${qnum} đúng)`
+    : `🎈 Vẫn tung bông, chúc mừng bạn, chưa chính xác nhưng bạn vẫn có quà nhé. (Câu ${qnum} sai)`;
+  // tạm show toast nhỏ
+  showToast(msg);
+}
+
+/* khi hoàn tất */
+async function finishGame(){
+  // gọi API submit
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "submit",
+        sdt: phone,
+        cau1: answersUser[1],
+        cau2: answersUser[2]
+      }),
+      headers: { "Content-Type": "application/json" }
+    });
+    const data = await res.json();
+    // hiển thị kết quả tổng quát
+    const isAllCorrect = (answersUser[1] === answers[1] && answersUser[2] === answers[2]);
+    const resultBox = document.getElementById('resultBox');
+    const resultMsg = document.getElementById('resultMsg');
+
+    if (isAllCorrect) {
+      resultMsg.innerHTML = "🎉 Chúc mừng bạn đã chính xác cả 2 câu! Bạn nhận được 1 phiếu đặc biệt tại Phở Sinh Đôi.";
+    } else {
+      // Nếu 1 trong 2 sai, nêu rõ đáp án đầy đủ
+      let text = "😊 Cám ơn bạn! Kết quả: ";
+      text += `<br>Câu 1 đúng: <b>${answers[1]}</b>. Bạn trả lời: <b>${answersUser[1]||'(bỏ trống)'}</b>`;
+      text += `<br>Câu 2 đúng: <b>${answers[2]}</b>. Bạn trả lời: <b>${answersUser[2]||'(bỏ trống)'}</b>`;
+      resultMsg.innerHTML = text;
+    }
+
+    // hiển thị result và chạy hiệu ứng confetti
+    document.getElementById('q2').style.display = 'none';
+    resultBox.style.display = 'block';
+    runConfetti(isAllCorrect ? 120 : 70);
+
+  } catch (err) {
+    showToast("Lỗi lưu kết quả. Vui lòng thử lại.");
+    console.error(err);
+  }
+}
+
+/* restart */
+function restart(){
+  window.location.reload();
+}
+
+/* nhỏ: hiển thị toast */
+function showToast(txt){
+  const d = document.createElement('div');
+  d.textContent = txt;
+  d.style.position = 'fixed';
+  d.style.left = '50%';
+  d.style.transform = 'translateX(-50%)';
+  d.style.bottom = '40px';
+  d.style.background = '#333';
+  d.style.color = '#fff';
+  d.style.padding = '10px 16px';
+  d.style.borderRadius = '8px';
+  d.style.zIndex = 9999;
+  document.body.appendChild(d);
+  setTimeout(()=> d.style.opacity = '0', 2500);
+  setTimeout(()=> d.remove(), 3000);
+}
+
+/* --- Confetti đơn giản bằng canvas --- */
+const canvas = document.getElementById('canvasConfetti');
+const ctx = canvas.getContext('2d');
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function runConfetti(particlesCount){
+  let particles = [];
+  for (let i=0;i<particlesCount;i++){
+    particles.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height/2,
+      vx: (Math.random()-0.5)*6,
+      vy: Math.random()*6 + 2,
+      r: Math.random()*6+3,
+      color: `hsl(${Math.random()*360},70%,60%)`,
+      life: Math.random()*80+40
+    });
+  }
+  let raf;
+  function frame(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.12; // gravity
+      p.life--;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.r, p.r*0.6);
+      if (p.life<=0 || p.y>canvas.height){
+        particles.splice(i,1);
+      }
+    }
+    if (particles.length>0) raf = requestAnimationFrame(frame); else cancelAnimationFrame(raf);
+  }
+  frame();
+}
+
+/* --- Nhạc nền: người dùng có thể chèn src vào thẻ audio --- */
+const audio = document.getElementById('bgMusic');
+document.getElementById('btnPlayMusic').addEventListener('click', function(){
+  // nếu chưa có src, thông báo cách thêm
+  if (!audio.querySelector('source') || !audio.querySelector('source').src) {
+    showToast("Để bật nhạc, hãy chỉnh src audio trong mã (file mp3 công khai).");
+    return;
+  }
+  audio.play().catch(err=>showToast("Trình duyệt chặn autoplay, vui lòng ấn Play."));
+});
+document.getElementById('btnStopMusic').addEventListener('click', function(){ audio.pause(); });
+
+</script>
+</body>
+</html>
